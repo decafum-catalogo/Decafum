@@ -75,9 +75,93 @@ body{background:var(--dark);color:var(--text);font-family:'Jost',sans-serif;font
 .mnote strong{display:block;color:var(--text);font-weight:500;margin-bottom:2px;font-size:12px;}
 .obtn{width:100%;background:#25d366;color:#fff;border:none;border-radius:30px;padding:13px;font-family:'Jost',sans-serif;font-size:14px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;}
 .obtn svg{width:18px;height:18px;fill:white;}
+
+/* ===== CARRITO ===== */
+.cart-fab{
+  position:fixed;
+  top:20px;
+  right:20px;
+  background:var(--gold);
+  color:#111;
+  padding:12px 16px;
+  border-radius:999px;
+  font-weight:600;
+  cursor:pointer;
+  z-index:3000;
+}
+.cart-panel{
+  position:fixed;
+  top:0;
+  right:-420px;
+  width:380px;
+  max-width:100%;
+  height:100%;
+  background:var(--dark2);
+  padding:20px;
+  overflow:auto;
+  z-index:3001;
+  transition:.3s;
+}
+.cart-panel.open{right:0;}
+
+.add-btns{
+  display:grid;
+  gap:8px;
+  margin-top:10px;
+}
+.add-cart{
+  border:none;
+  border-radius:10px;
+  padding:10px;
+  background:var(--gold);
+  color:#111;
+  font-weight:600;
+  cursor:pointer;
+}
+.cart-item{
+  border-bottom:1px solid #333;
+  padding:12px 0;
+}
+.qty-btn{
+  border:none;
+  border-radius:8px;
+  padding:6px 10px;
+  margin-right:6px;
+  cursor:pointer;
+}
+
+@media(min-width:900px){
+  .grid{
+    grid-template-columns:repeat(auto-fit,minmax(260px,1fr)) !important;
+    gap:12px !important;
+    background:transparent !important;
+    padding:12px;
+  }
+  .card{
+    border:1px solid #222;
+    border-radius:12px;
+    overflow:hidden;
+  }
+}
+@media(max-width:768px){
+  .cart-panel{width:100%;}
+}
+
 </style>
 </head>
 <body>
+
+<div class="cart-fab" onclick="toggleCart()">🛒 <span id="cart-count">0</span></div>
+
+<div class="cart-panel" id="cart-panel">
+  <h2>Mi carrito</h2>
+  <div id="cart-items"></div>
+  <h3 style="margin-top:15px;">Total: ₡<span id="cart-total">0</span></h3>
+  <button class="obtn" style="margin-top:15px;" onclick="sendWhatsApp()">
+    Finalizar pedido
+  </button>
+</div>
+
 <div class="hero">
   <div class="hp"></div>
   <div class="hi">
@@ -186,7 +270,15 @@ function render(){
     const imgSrc=p.img&&IMGS[p.img]?IMGS[p.img]:'';
     const priceStr=p.priceS?`<span>${p.priceS}</span> <span style="color:var(--text-dim);font-size:10px">set</span>`:`<span>5ml ${fmt(p.p5)}</span>`;
     const imgHtml=imgSrc?`<img class="card-img" src="${imgSrc}" alt="${p.name}" loading="lazy"/>`:`<div class="card-img-ph">🍾</div>`;
-    return `<div class="card${p.g==='estuche'?' featured':''}" onclick="openM(${p.id})">${imgHtml}<div class="card-body"><p class="card-gender ${g.c}">${g.l}</p><p class="card-name">${p.name}</p><p class="card-brand">${p.brand}</p><p class="card-price">${priceStr}</p></div><span class="card-arrow">›</span></div>`;
+    return `<div class="card${p.g==='estuche'?' featured':''}" onclick="openM(${p.id})">${imgHtml}<div class="card-body"><p class="card-gender ${g.c}">${g.l}</p><p class="card-name">${p.name}</p><p class="card-brand">${p.brand}</p><p class="card-price">${priceStr}</p>
+<div class="add-btns">
+${p.priceS
+? `<button class="add-cart" onclick="event.stopPropagation();addToCart(${p.id},'set')">🛒 Agregar set</button>`
+: `<button class="add-cart" onclick="event.stopPropagation();addToCart(${p.id},'5')">🛒 5 ml</button>
+<button class="add-cart" onclick="event.stopPropagation();addToCart(${p.id},'10')">🛒 10 ml</button>`
+}
+</div>
+</div><span class="card-arrow">›</span></div>`;
   }).join('');
 }
 function openM(id){
@@ -210,6 +302,109 @@ function openM(id){
 }
 function closeM(e){if(e.target===document.getElementById('ov'))document.getElementById('ov').classList.remove('open');}
 render();
+
+let cart = JSON.parse(localStorage.getItem('decafum_cart') || '[]');
+
+function toggleCart(){
+  document.getElementById('cart-panel').classList.toggle('open');
+}
+
+function addToCart(id,size){
+  const p = P.find(x => x.id === id);
+  if(!p) return;
+
+  let label = size === 'set' ? 'Set' : size + ' ml';
+  let price = 0;
+
+  if(size === 'set'){
+    price = parseInt(String(p.priceS).replace(/\D/g,'')) || 0;
+  }else if(size === '5'){
+    price = Number(p.p5 || 0);
+  }else{
+    price = Number(p.p10 || 0);
+  }
+
+  const key = id + '-' + size;
+  const item = cart.find(x => x.key === key);
+
+  if(item){
+    item.qty++;
+  }else{
+    cart.push({
+      key,
+      name:p.name,
+      size:label,
+      price,
+      qty:1
+    });
+  }
+
+  localStorage.setItem('decafum_cart', JSON.stringify(cart));
+  updateCart();
+}
+
+function changeQty(key,d){
+  const item = cart.find(x => x.key === key);
+  if(!item) return;
+
+  item.qty += d;
+
+  if(item.qty <= 0){
+    cart = cart.filter(x => x.key !== key);
+  }
+
+  localStorage.setItem('decafum_cart', JSON.stringify(cart));
+  updateCart();
+}
+
+function updateCart(){
+  const count = cart.reduce((a,b)=>a+b.qty,0);
+  const total = cart.reduce((a,b)=>a+(b.price*b.qty),0);
+
+  document.getElementById('cart-count').textContent = count;
+  document.getElementById('cart-total').textContent = total.toLocaleString();
+
+  const box = document.getElementById('cart-items');
+
+  if(!cart.length){
+    box.innerHTML = '<p>Tu carrito está vacío.</p>';
+    return;
+  }
+
+  box.innerHTML = cart.map(i => `
+    <div class="cart-item">
+      <strong>${i.name}</strong><br>
+      ${i.size} - ₡${i.price.toLocaleString()}<br>
+      Cantidad: ${i.qty}<br><br>
+
+      <button class="qty-btn" onclick="changeQty('${i.key}',-1)">➖</button>
+      <button class="qty-btn" onclick="changeQty('${i.key}',1)">➕</button>
+    </div>
+  `).join('');
+}
+
+function sendWhatsApp(){
+  if(!cart.length){
+    alert('El carrito está vacío.');
+    return;
+  }
+
+  let total = 0;
+  let msg = 'Hola, quiero hacer este pedido:%0A%0A';
+
+  cart.forEach(i=>{
+    const sub = i.price * i.qty;
+    total += sub;
+    msg += `• ${i.name} (${i.size}) x${i.qty} - ₡${sub.toLocaleString()}%0A`;
+  });
+
+  msg += `%0ATotal: ₡${total.toLocaleString()}`;
+
+  window.open('https://wa.me/50671267535?text=' + msg,'_blank');
+}
+
+updateCart();
+
 </script>
 </body>
 </html>
