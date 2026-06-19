@@ -154,6 +154,24 @@ body{background:var(--dark);color:var(--text);font-family:'Jost',sans-serif;font
 <div class="cart-fab" onclick="toggleCart()">🛒 <span id="cart-count">0</span></div>
 
 <div class="cart-panel" id="cart-panel">
+  <button
+    onclick="toggleCart()"
+    style="
+      position:absolute;
+      top:15px;
+      right:15px;
+      width:35px;
+      height:35px;
+      border:none;
+      border-radius:50%;
+      background:#333;
+      color:#fff;
+      font-size:20px;
+      cursor:pointer;
+    ">
+    ✕
+  </button>
+
   <h2>Mi carrito</h2>
   <div id="cart-items"></div>
   <h3 style="margin-top:15px;">Total: ₡<span id="cart-total">0</span></h3>
